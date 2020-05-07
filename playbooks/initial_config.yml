@@ -1,0 +1,9 @@
+- hosts: all
+  gather_facts: False
+  roles:
+  - ubuntu_ansible_prepare
+
+- hosts: all
+  roles:
+  - ubuntu_apt_setup
+  - docker

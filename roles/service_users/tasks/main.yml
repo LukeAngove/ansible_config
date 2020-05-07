@@ -1,0 +1,15 @@
+- name: Set Docker users
+  become: yes
+  user:
+    name: "{{item.value.name}}"
+    append: yes
+    groups: "{{item.value.groups}}"
+  loop: "{{new_user_list}}"
+
+- name: Set SSH public key for users
+  become: yes
+  authorized_key:
+    user: "{{item.value.name}}"
+    key: "{{lookup('file', item.value.ssh_key + '.pub')}}"
+    state: present
+  loop: "{{new_user_list}}"

@@ -1,0 +1,52 @@
+- name: Ensure run directory exists
+  run_once: true
+  local_action:
+    module: file
+    path: "{{run_dir}}"
+    state: directory
+
+- name: Generate RKE ssh keys (generate a new set on first creation, use them in future)
+  run_once: true
+  local_action:
+    module: openssh_keypair
+    path: "{{run_dir}}/rke_id"
+    force: no # Must be no, so we don't generate a new key for every host.
+  register: rke_ssh_key
+
+- name: Create RKE config
+  run_once: true
+  local_action:
+    module: template
+    src: cluster.j2.yml
+    dest: "{{run_dir}}/cluster.yml"
+  register: rke_config_file
+
+- name: Update ssh key fact for future use
+  set_fact:
+    service_users:
+      kubernetes: "{{ service_users.kubernetes | default({}) | combine( {'ssh_key': rke_ssh_key.filename} ) }}"
+
+
+- name: Setup users
+  include_role:
+    name: service_users
+  vars:
+    new_user_list: "{{service_users | dict2items}}"
+
+- name: Get RKE binary
+  run_once: true
+  local_action:
+    module: get_url
+    url: https://github.com/rancher/rke/releases/download/v1.0.8/rke_linux-amd64
+    dest: "{{run_dir}}/rke"
+    mode: '0755'
+    checksum: sha256:f29c1c63fc510ff1a5764d59b6296d3ef4de7bac95636988ad2ee59522339004
+
+- name: Run RKE config
+  run_once: true
+  local_action:
+    module: command
+    argv:
+      - "{{run_dir}}/rke"
+      - up
+    chdir: "{{run_dir}}"
